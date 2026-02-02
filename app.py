@@ -17,6 +17,13 @@ app = Flask(__name__)
 REPLICATE_API_TOKEN = os.environ.get("REPLICATE_API_TOKEN", "")
 
 
+@app.errorhandler(Exception)
+def handle_exception(e):
+    """Catch any unhandled exception and return JSON so the frontend can show it."""
+    app.logger.exception("Unhandled error")
+    return jsonify({"error": str(e) or "An unexpected error occurred."}), 500
+
+
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -25,7 +32,10 @@ def index():
 @app.route("/api/generate", methods=["POST"])
 def generate():
     try:
-        data = request.get_json() or {}
+        try:
+            data = request.get_json(force=True, silent=True) or {}
+        except Exception:
+            data = {}
         prompt = (data.get("prompt") or "").strip()
         try:
             duration = max(8, min(30, int(data.get("duration", 8))))

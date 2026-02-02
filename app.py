@@ -17,6 +17,14 @@ app = Flask(__name__)
 REPLICATE_API_TOKEN = os.environ.get("REPLICATE_API_TOKEN", "")
 
 
+@app.errorhandler(405)
+def handle_405(e):
+    """Return JSON for 405 Method Not Allowed (e.g. GET to /api/generate)."""
+    return jsonify({
+        "error": "Method not allowed. Use POST to /api/generate with a JSON body (prompt, duration, model_version).",
+    }), 405
+
+
 @app.errorhandler(Exception)
 def handle_exception(e):
     """Catch any unhandled exception and return JSON so the frontend can show it."""

@@ -13,7 +13,7 @@ Auralis takes a text prompt like _"peaceful piano melody for studying"_ or _"upb
 - **Customizable Duration**: Choose between 8, 15, or 30-second compositions
 - **Model Selection**: Pick between Melody (balanced) or Large (more complex) versions
 - **Download**: Save your generated music as MP3 files
-- **Elegant UI**: Black and white themed interface with musical illustrations
+- **Elegant UI**: Black and white themed interface with floating musical notes
 
 ## 🛠️ Technical Stack
 
@@ -40,7 +40,6 @@ Auralis takes a text prompt like _"peaceful piano melody for studying"_ or _"upb
 I designed Auralis with a minimalist black-and-white aesthetic to create an elegant, focused experience. The UI features:
 
 - Subtle musical note animations in the background
-- Hand-drawn illustrations of musicians (DJ and accordion player)
 - Clean, centered layout that puts the creative process front and center
 - Smooth loading animations during music generation
 
@@ -162,7 +161,7 @@ Ideas for future versions:
 
 - **Meta AI** for the MusicGen model
 - **Replicate** for providing accessible AI model hosting
-- Musical illustration assets for the UI design
+- Design inspiration from minimalist music apps
 
 ## 📄 License
 

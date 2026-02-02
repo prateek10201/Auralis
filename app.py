@@ -2,6 +2,7 @@
 Flask backend for AI instrumental music generation via Replicate (MusicGen).
 """
 import os
+import traceback
 import urllib.parse
 from io import BytesIO
 
@@ -23,27 +24,30 @@ def index():
 
 @app.route("/api/generate", methods=["POST"])
 def generate():
-    data = request.get_json() or {}
-    prompt = (data.get("prompt") or "").strip()
-    duration = max(8, min(30, int(data.get("duration", 8))))
-    model_version = data.get("model_version", "melody")
-    if model_version == "melody":
-        model_version = "melody-large"
-    elif model_version != "large":
-        model_version = "melody-large"
-
-    if not prompt:
-        return jsonify({"error": "Please provide a text prompt."}), 400
-
-    if not REPLICATE_API_TOKEN:
-        return (
-            jsonify({
-                "error": "Replicate API token not set. Set REPLICATE_API_TOKEN in your environment or .env file.",
-            }),
-            503,
-        )
-
     try:
+        data = request.get_json() or {}
+        prompt = (data.get("prompt") or "").strip()
+        try:
+            duration = max(8, min(30, int(data.get("duration", 8))))
+        except (TypeError, ValueError):
+            duration = 8
+        model_version = data.get("model_version", "melody")
+        if model_version == "melody":
+            model_version = "melody-large"
+        elif model_version != "large":
+            model_version = "melody-large"
+
+        if not prompt:
+            return jsonify({"error": "Please provide a text prompt."}), 400
+
+        if not REPLICATE_API_TOKEN:
+            return (
+                jsonify({
+                    "error": "Replicate API token not set. Set REPLICATE_API_TOKEN in your environment or .env file.",
+                }),
+                503,
+            )
+
         import replicate
 
         output = replicate.run(
@@ -57,6 +61,29 @@ def generate():
             },
             use_file_output=False,
         )
+
+        # Replicate can return: URL string, list of URLs, or FileOutput-like object with .url
+        audio_url = None
+        if output is None:
+            pass
+        elif hasattr(output, "url"):
+            audio_url = getattr(output, "url", None)
+        elif isinstance(output, list) and output:
+            first = output[0]
+            audio_url = getattr(first, "url", first) if first is not None else None
+        elif isinstance(output, str):
+            audio_url = output
+
+        if not audio_url or not isinstance(audio_url, str):
+            return jsonify({"error": "No audio URL returned from Replicate."}), 502
+
+        # Return Replicate URL for playback; proxy endpoints for same-origin/cache and download
+        return jsonify({
+            "audio_url": audio_url,
+            "stream_url": f"/api/stream?url={urllib.parse.quote(audio_url, safe='')}",
+            "download_url": f"/api/download?url={urllib.parse.quote(audio_url, safe='')}",
+        })
+
     except Exception as e:
         err_msg = str(e)
         if "insufficient credit" in err_msg.lower() or "402" in err_msg:
@@ -66,27 +93,8 @@ def generate():
                 }),
                 402,
             )
+        app.logger.warning("generate error: %s\n%s", err_msg, traceback.format_exc())
         return jsonify({"error": err_msg}), 502
-
-    # Replicate can return: URL string, list of URLs, or FileOutput-like object with .url
-    audio_url = None
-    if hasattr(output, "url"):
-        audio_url = getattr(output, "url", None)
-    elif isinstance(output, list):
-        first = output[0] if output else None
-        audio_url = getattr(first, "url", first) if first is not None else None
-    else:
-        audio_url = output
-
-    if not audio_url or not isinstance(audio_url, str):
-        return jsonify({"error": "No audio URL returned from Replicate."}), 502
-
-    # Return Replicate URL for playback; proxy endpoints for same-origin/cache and download
-    return jsonify({
-        "audio_url": audio_url,
-        "stream_url": f"/api/stream?url={urllib.parse.quote(audio_url, safe='')}",
-        "download_url": f"/api/download?url={urllib.parse.quote(audio_url, safe='')}",
-    })
 
 
 def _fetch_audio(url):

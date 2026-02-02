@@ -1,95 +1,175 @@
-# Auralis — AI Instrumental Music Generator
+# Auralis 🎵 — AI Instrumental Music Generator
 
-Generate instrumental music from text prompts using [Meta MusicGen](https://replicate.com/meta/musicgen) via the Replicate API.
+**Auralis** is a web application that generates instrumental music from simple text descriptions using artificial intelligence. Inspired by apps like Suno, I built this to explore how AI can transform creative ideas into real music in seconds.
 
-## Features
+## 🎯 What This Project Does
 
-- **Text prompt**: Describe the mood, instruments, or style (e.g. "peaceful piano melody for studying", "upbeat guitar instrumental").
-- **Generate**: Sends the prompt to MusicGen on Replicate and returns an MP3.
-- **Play**: Generated track plays automatically in the browser.
-- **Download**: Save the file as `auralis-generated.mp3`.
+Auralis takes a text prompt like _"peaceful piano melody for studying"_ or _"upbeat guitar instrumental"_ and generates an original piece of instrumental music. The app uses Meta's MusicGen AI model via the Replicate API to compose and produce audio files based purely on your description.
 
-## Tech Stack
+## ✨ Key Features
 
-- **Frontend**: HTML, CSS, JavaScript — simple form, loading state, HTML5 audio player.
-- **Backend**: Python Flask — proxies requests to Replicate API and streams/downloads audio.
-- **API**: [Replicate](https://replicate.com) — model `meta/musicgen`.
+- **Text-to-Music Generation**: Describe the mood, instruments, or style you want
+- **Instant Playback**: Generated tracks play automatically in your browser
+- **Customizable Duration**: Choose between 8, 15, or 30-second compositions
+- **Model Selection**: Pick between Melody (balanced) or Large (more complex) versions
+- **Download**: Save your generated music as MP3 files
+- **Elegant UI**: Black and white themed interface with musical illustrations
 
-## Setup and Run Locally
+## 🛠️ Technical Stack
 
-### 1. Prerequisites
+### Frontend
+
+- **HTML5** for structure
+- **CSS3** for styling with musical theme and animations
+- **Vanilla JavaScript** for interactive controls and API communication
+
+### Backend
+
+- **Python Flask** server to handle API requests
+- **Replicate API** integration for MusicGen model
+- **python-dotenv** for secure API key management
+
+### AI Model
+
+- **Meta MusicGen** — state-of-the-art text-to-music generation model
+- Supports multiple durations and model variants
+- Outputs high-quality MP3 audio files
+
+## 🎨 Design Philosophy
+
+I designed Auralis with a minimalist black-and-white aesthetic to create an elegant, focused experience. The UI features:
+
+- Subtle musical note animations in the background
+- Hand-drawn illustrations of musicians (DJ and accordion player)
+- Clean, centered layout that puts the creative process front and center
+- Smooth loading animations during music generation
+
+## 🚀 Setup and Run Locally
+
+### Prerequisites
 
 - Python 3.10 or 3.11
-- A [Replicate](https://replicate.com) account and API token
+- A [Replicate](https://replicate.com) account (free tier available)
+- Replicate API token
 
-### 2. Clone and enter the project
+### Installation Steps
 
-```bash
-cd /path/to/Auralis_Project
-```
-
-### 3. Create a virtual environment
+1. **Clone or download the project**
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate   # On Windows: .venv\Scripts\activate
+   cd Auralis_Project
 ```
 
-### 4. Install dependencies
+2. **Create a virtual environment**
 
 ```bash
-pip install -r requirements.txt
+   python3 -m venv .venv
+   source .venv/bin/activate   # Windows: .venv\Scripts\activate
 ```
 
-### 5. Set your Replicate API token
-
-Create a `.env` file in the project root (copy from the example):
+3. **Install dependencies**
 
 ```bash
-cp .env.example .env
+   pip install -r requirements.txt
 ```
 
-Edit `.env` and set your token:
+4. **Configure your API token**
 
-```
-REPLICATE_API_TOKEN=r8_your_actual_token_here
-```
-
-Get your token from [Replicate Account → API tokens](https://replicate.com/account/api-tokens).
-
-### 6. Run the app
+   Copy the example environment file:
 
 ```bash
-python app.py
+   cp .env.example .env
 ```
 
-Open [http://127.0.0.1:5000](http://127.0.0.1:5000) in your browser.
+Edit `.env` and add your Replicate API token:
 
-## Usage
+```
+   REPLICATE_API_TOKEN=r8_your_actual_token_here
+```
 
-1. Enter a short description of the music (e.g. "calm acoustic guitar, rainy day").
-2. Optionally choose duration (8, 15, or 30 seconds) and model (Melody or Large).
-3. Click **Generate**.
-4. Wait up to about a minute; the track will play when ready.
-5. Use **Download** to save the MP3.
+Get your token from [Replicate Account → API tokens](https://replicate.com/account/api-tokens)
 
-## Project layout
+5. **Run the application**
+
+```bash
+   python app.py
+```
+
+6. **Open in browser**
+
+   Navigate to [http://127.0.0.1:5001](http://127.0.0.1:5001)
+
+## 🌐 Deploying to Production
+
+Auralis can be deployed to any Python-compatible hosting platform. The app is production-ready with gunicorn support, and deployed in Render.
+
+## 📖 How to Use Auralis
+
+1. **Enter your prompt**: Describe the music you want to hear
+
+   - Example: _"calm acoustic guitar, rainy day"_
+   - Example: _"energetic electronic beat with synth"_
+
+2. **Choose settings** (optional):
+
+   - **Duration**: 8, 15, or 30 seconds
+   - **Model**: Melody (default) or Large (more complex)
+
+3. **Generate**: Click the Generate button
+
+4. **Wait**: Generation takes 20-60 seconds depending on duration
+
+5. **Listen & Download**: Play your track in-browser or download as MP3
+
+## 📁 Project Structure
 
 ```
 Auralis_Project/
-├── app.py              # Flask server and Replicate API integration
-├── requirements.txt
-├── .env.example        # Example env (copy to .env and add token)
-├── README.md
+├── app.py                 # Flask backend and Replicate API integration
+├── requirements.txt       # Python dependencies
+├── .env.example          # Environment variables template
+├── .gitignore            # Git ignore rules
+├── Procfile              # Production server configuration
+├── README.md             # This file
 ├── templates/
-│   └── index.html
+│   └── index.html        # Main application page
 └── static/
-    ├── style.css
-    └── app.js
+    ├── style.css         # Styling and animations
+    └── app.js            # Frontend JavaScript logic
 ```
 
-## Notes
+## 🎓 What I Learned
 
-- Generation usually takes 30–60 seconds.
-- Replicate charges per run; see [Replicate pricing](https://replicate.com/pricing).
-- Keep your `.env` (and token) out of version control.
+Building Auralis taught me:
+
+- How to integrate AI models through APIs
+- Flask backend development and API design
+- Asynchronous JavaScript for smooth UX
+- Deploying Python web applications
+- Balancing aesthetic design with functionality
+
+## 🔮 Future Enhancements
+
+Ideas for future versions:
+
+- Longer composition options (60+ seconds)
+- Style presets (Jazz, Classical, Electronic, etc.)
+- Multi-track generation and mixing
+- User accounts to save generated tracks
+- Sharing capabilities with unique URLs
+
+## 🙏 Acknowledgments
+
+- **Meta AI** for the MusicGen model
+- **Replicate** for providing accessible AI model hosting
+- Musical illustration assets for the UI design
+
+## 📄 License
+
+This project is open source.
+
+---
+
+**Made with ♪ by Prateek**
+
+_Transform your words into melodies_

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Auralis — AI Instrumental Music</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="header">
+        <h1 class="logo">Auralis</h1>
+        <p class="tagline">
+          Generate instrumental music from a short text prompt.
+        </p>
+      </header>
+
+      <main class="main">
+        <form id="form" class="form" novalidate>
+          <label for="prompt" class="label">Describe the music</label>
+          <textarea
+            id="prompt"
+            name="prompt"
+            class="input"
+            rows="3"
+            placeholder="e.g. peaceful piano melody for studying, upbeat guitar instrumental, lo-fi beats with soft synths"
+            maxlength="500"
+          ></textarea>
+          <div class="row">
+            <div class="field">
+              <label for="duration" class="label">Duration (seconds)</label>
+              <select id="duration" name="duration" class="select">
+                <option value="8">8</option>
+                <option value="15">15</option>
+                <option value="30" selected>30</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="model" class="label">Model</label>
+              <select id="model" name="model_version" class="select">
+                <option value="melody" selected>Melody (1.5B)</option>
+                <option value="large">Large (3.5B)</option>
+              </select>
+            </div>
+          </div>
+          <button type="submit" id="submit" class="btn">Generate</button>
+        </form>
+
+        <div id="loading" class="loading hidden" aria-live="polite">
+          <div class="spinner"></div>
+          <p>Creating your track… This may take up to a minute.</p>
+        </div>
+
+        <div id="result" class="result hidden">
+          <p class="result-title">Your track</p>
+          <audio id="player" class="player" controls preload="metadata"></audio>
+          <div class="actions">
+            <a
+              id="download"
+              class="btn btn-secondary"
+              href="#"
+              download="auralis-generated.mp3"
+              >Download</a
+            >
+          </div>
+        </div>
+
+        <div id="error" class="error hidden" role="alert"></div>
+      </main>
+
+      <footer class="footer">
+        <p>
+          Powered by
+          <a
+            href="https://replicate.com/meta/musicgen"
+            target="_blank"
+            rel="noopener"
+            >Meta MusicGen</a
+          >
+          via Replicate.
+        </p>
+      </footer>
+    </div>
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+  </body>
+</html>

@@ -4,13 +4,12 @@ Flask backend for AI instrumental music generation via Replicate (MusicGen).
 import os
 import traceback
 import urllib.parse
-from io import BytesIO
 
 import requests
 from dotenv import load_dotenv
 load_dotenv()
 
-from flask import Flask, render_template, request, jsonify, send_file
+from flask import Flask, render_template, request, jsonify, Response, stream_with_context
 
 app = Flask(__name__)
 
@@ -19,7 +18,7 @@ REPLICATE_API_TOKEN = os.environ.get("REPLICATE_API_TOKEN", "")
 
 @app.errorhandler(405)
 def handle_405(e):
-    """Return JSON for 405 Method Not Allowed (e.g. GET to /api/generate)."""
+    """Return JSON for 405 Method Not Allowed."""
     return jsonify({
         "error": "Method not allowed. Use POST to /api/generate with a JSON body (prompt, duration, model_version).",
     }), 405
@@ -36,6 +35,10 @@ def handle_exception(e):
 def index():
     return render_template("index.html")
 
+@app.route("/favicon.ico")
+def favicon():
+    return "", 204
+
 
 @app.route("/api/generate", methods=["POST"])
 def generate():
@@ -44,11 +47,14 @@ def generate():
             data = request.get_json(force=True, silent=True) or {}
         except Exception:
             data = {}
+
         prompt = (data.get("prompt") or "").strip()
+
         try:
             duration = max(8, min(30, int(data.get("duration", 8))))
         except (TypeError, ValueError):
             duration = 8
+
         model_version = data.get("model_version", "melody")
         if model_version == "melody":
             model_version = "melody-large"
@@ -95,10 +101,11 @@ def generate():
         if not audio_url or not isinstance(audio_url, str):
             return jsonify({"error": "No audio URL returned from Replicate."}), 502
 
-        # Return Replicate URL for playback; proxy endpoints for same-origin/cache and download
+        # FIX: Return the direct Replicate URL for playback (no proxy needed)
+        # Only use the proxy /api/download for downloading (chunked streaming)
         return jsonify({
             "audio_url": audio_url,
-            "stream_url": f"/api/stream?url={urllib.parse.quote(audio_url, safe='')}",
+            "stream_url": audio_url,  # Direct URL — browser plays this without hitting Render again
             "download_url": f"/api/download?url={urllib.parse.quote(audio_url, safe='')}",
         })
 
@@ -115,32 +122,20 @@ def generate():
         return jsonify({"error": err_msg}), 502
 
 
-def _fetch_audio(url):
-    """Fetch audio file from URL using requests library for better SSL handling."""
+def _stream_audio(url):
+    """Properly stream audio in chunks to avoid timeout and memory issues."""
     response = requests.get(
         url,
         headers={"User-Agent": "Auralis/1.0"},
-        timeout=60,
-        stream=True,
+        timeout=120,
+        stream=True,  # Now we actually USE streaming
         verify=True,
     )
     response.raise_for_status()
-    return response.content
-
-
-@app.route("/api/stream")
-def stream():
-    url = request.args.get("url")
-    if not url:
-        return jsonify({"error": "Missing url parameter"}), 400
-    url = urllib.parse.unquote(url)
-    try:
-        data = _fetch_audio(url)
-        return send_file(BytesIO(data), mimetype="audio/mpeg", as_attachment=False)
-    except requests.exceptions.RequestException as e:
-        return jsonify({"error": f"Failed to fetch audio: {str(e)}"}), 502
-    except Exception as e:
-        return jsonify({"error": f"Error: {str(e)}"}), 502
+    # Yield in chunks — this keeps the connection alive and avoids loading entire file into memory
+    for chunk in response.iter_content(chunk_size=8192):
+        if chunk:
+            yield chunk
 
 
 @app.route("/api/download")
@@ -150,12 +145,13 @@ def download():
         return jsonify({"error": "Missing url parameter"}), 400
     url = urllib.parse.unquote(url)
     try:
-        data = _fetch_audio(url)
-        return send_file(
-            BytesIO(data),
+        # Use chunked streaming response — no timeout issues on Render
+        return Response(
+            stream_with_context(_stream_audio(url)),
             mimetype="audio/mpeg",
-            as_attachment=True,
-            download_name="auralis-generated.mp3",
+            headers={
+                "Content-Disposition": "attachment; filename=auralis-generated.mp3",
+            },
         )
     except requests.exceptions.RequestException as e:
         return jsonify({"error": f"Failed to fetch audio: {str(e)}"}), 502

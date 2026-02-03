@@ -19,6 +19,9 @@
   const volumeSlider = document.getElementById("volume");
   const volumeBtn = document.getElementById("volumeBtn");
 
+  // Track whether listeners are already attached
+  let listenersAttached = false;
+
   function hideAll() {
     loading.classList.add("hidden");
     result.classList.add("hidden");
@@ -85,51 +88,57 @@
   function setupCustomPlayer() {
     if (!player || !playPauseBtn) return;
 
-    player.addEventListener("timeupdate", updateProgress);
-    player.addEventListener("durationchange", updateDuration);
-    player.addEventListener("ended", updatePlayPauseIcon);
-    player.addEventListener("loadedmetadata", updateDuration);
+    // Only attach event listeners ONCE to avoid duplicate handlers
+    if (!listenersAttached) {
+      player.addEventListener("timeupdate", updateProgress);
+      player.addEventListener("durationchange", updateDuration);
+      player.addEventListener("ended", updatePlayPauseIcon);
+      player.addEventListener("loadedmetadata", updateDuration);
 
-    playPauseBtn.addEventListener("click", function () {
-      if (player.paused) {
-        player.play().catch(function () {});
-      } else {
-        player.pause();
-      }
-      updatePlayPauseIcon();
-    });
-
-    if (progressBar && progressFill) {
-      progressBar.addEventListener("click", function (e) {
-        const d = player.duration;
-        if (!isFinite(d) || d <= 0) return;
-        const rect = progressBar.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const pct = Math.max(0, Math.min(1, x / rect.width));
-        player.currentTime = pct * d;
-        updateProgress();
-      });
-    }
-
-    if (volumeSlider) {
-      volumeSlider.addEventListener("input", function () {
-        player.volume = volumeSlider.value / 100;
-      });
-    }
-    if (volumeBtn) {
-      var savedVolume = 1;
-      volumeBtn.addEventListener("click", function () {
-        if (player.volume > 0) {
-          savedVolume = player.volume;
-          player.volume = 0;
-          if (volumeSlider) volumeSlider.value = 0;
-          volumeBtn.setAttribute("aria-label", "Unmute");
+      playPauseBtn.addEventListener("click", function () {
+        if (player.paused) {
+          player.play().catch(function () {});
         } else {
-          player.volume = savedVolume;
-          if (volumeSlider) volumeSlider.value = savedVolume * 100;
-          volumeBtn.setAttribute("aria-label", "Mute");
+          player.pause();
         }
+        updatePlayPauseIcon();
       });
+
+      if (progressBar && progressFill) {
+        progressBar.addEventListener("click", function (e) {
+          const d = player.duration;
+          if (!isFinite(d) || d <= 0) return;
+          const rect = progressBar.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const pct = Math.max(0, Math.min(1, x / rect.width));
+          player.currentTime = pct * d;
+          updateProgress();
+        });
+      }
+
+      if (volumeSlider) {
+        volumeSlider.addEventListener("input", function () {
+          player.volume = volumeSlider.value / 100;
+        });
+      }
+
+      if (volumeBtn) {
+        var savedVolume = 1;
+        volumeBtn.addEventListener("click", function () {
+          if (player.volume > 0) {
+            savedVolume = player.volume;
+            player.volume = 0;
+            if (volumeSlider) volumeSlider.value = 0;
+            volumeBtn.setAttribute("aria-label", "Unmute");
+          } else {
+            player.volume = savedVolume;
+            if (volumeSlider) volumeSlider.value = savedVolume * 100;
+            volumeBtn.setAttribute("aria-label", "Mute");
+          }
+        });
+      }
+
+      listenersAttached = true;
     }
 
     updatePlayPauseIcon();
@@ -141,13 +150,19 @@
     loading.classList.add("hidden");
     errorEl.classList.add("hidden");
     errorEl.textContent = "";
+
+    // Set audio source to the DIRECT Replicate URL — browser fetches it itself
     player.src = streamUrl;
     player.load();
+
+    // Download button uses the proxy endpoint
     downloadLink.href = downloadUrl;
     downloadLink.download = "auralis-generated.mp3";
+
     result.classList.remove("hidden");
     submitBtn.disabled = false;
 
+    // Reset player state
     progressFill.style.width = "0%";
     if (progressBar) progressBar.setAttribute("aria-valuenow", 0);
     currentTimeEl.textContent = "0:00";
@@ -157,7 +172,17 @@
     if (volumeBtn) volumeBtn.setAttribute("aria-label", "Mute");
 
     setupCustomPlayer();
-    player.play().catch(function () {});
+
+    // Play after metadata loads (more reliable than immediate play)
+    player.oncanplay = function () {
+      player.play().catch(function () {});
+      updatePlayPauseIcon();
+    };
+
+    // Handle audio load errors (e.g. CORS or expired URL)
+    player.onerror = function () {
+      showError("Failed to load audio. Please try generating again.");
+    };
   }
 
   form.addEventListener("submit", async function (e) {
@@ -193,8 +218,11 @@
         return;
       }
 
+      // stream_url is now the direct Replicate URL (browser plays it)
+      // download_url goes through our /api/download proxy (chunked streaming)
       const streamUrl = data.stream_url || data.audio_url;
       const downloadUrl = data.download_url || data.audio_url;
+
       if (streamUrl) {
         showResult(streamUrl, downloadUrl);
       } else {

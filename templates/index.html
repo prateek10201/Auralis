@@ -3,11 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Auralis. — AI-Powered Music Generation</title>
+    <title>Auralis</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
     <link
@@ -16,65 +16,130 @@
     />
   </head>
   <body>
-    <!-- Background: floating musical notes (50–60% opacity) -->
-    <div class="bg-notes" aria-hidden="true">
-      <span class="note note-float">♪</span>
-      <span class="note note-float">♫</span>
-      <span class="note note-float">🎵</span>
-      <span class="note note-float">🎶</span>
-      <span class="note note-float">♪</span>
-      <span class="note note-float">♫</span>
-      <span class="note note-float">🎵</span>
-      <span class="note note-float">♪</span>
-      <span class="note note-float">🎶</span>
-      <span class="note note-float">♫</span>
+    <!-- Piano Illustration - Bottom Left -->
+    <div class="illustration illustration-left" aria-hidden="true">
+      <img
+        src="{{ url_for('static', filename='images/piano-illustration.png') }}"
+        alt=""
+      />
     </div>
 
-    <div class="wrap">
+    <!-- Tabla Illustration - Bottom Right -->
+    <div class="illustration illustration-right" aria-hidden="true">
+      <img
+        src="{{ url_for('static', filename='images/tabla-illustration.png') }}"
+        alt=""
+      />
+    </div>
+
+    <!-- Floating Musical Notes Background -->
+    <div class="floating-notes" aria-hidden="true"></div>
+
+    <div class="app-container">
+      <!-- Header -->
       <header class="header">
-        <h1 class="logo">Auralis.</h1>
-        <p class="tagline">AI-Powered Music Generation</p>
+        <div class="header-inner">
+          <div class="logo-group">
+            <div class="logo-icon">
+              <span>A</span>
+            </div>
+            <span class="logo-text">Auralis</span>
+          </div>
+          <p class="header-tagline">AI-Powered Music Generation</p>
+        </div>
       </header>
 
+      <!-- Main Content -->
       <main class="main">
-        <div class="hero-card">
+        <!-- Hero Section -->
+        <div class="hero">
+          <h1 class="hero-title">Create Music with AI</h1>
+          <p class="hero-subtitle">
+            Describe your perfect soundtrack and let our AI compose it for you.
+            From ambient soundscapes to energetic beats.
+          </p>
+        </div>
+
+        <!-- Generator Card -->
+        <div class="generator-card">
           <form id="form" class="form" method="post" action="#" novalidate>
-            <label for="prompt" class="label"
-              >Describe your perfect soundtrack</label
-            >
             <textarea
               id="prompt"
               name="prompt"
-              class="input"
-              rows="3"
-              placeholder="Describe your perfect soundtrack... (e.g., 'peaceful piano with rain sounds')."
+              class="prompt-input"
+              rows="4"
+              placeholder="Describe your perfect soundtrack... (e.g., 'peaceful piano with rain sounds')"
               maxlength="500"
             ></textarea>
-            <div class="row">
-              <div class="field">
-                <label for="duration" class="label">Duration</label>
-                <select id="duration" name="duration" class="select">
-                  <option value="8">8 sec</option>
-                  <option value="15">15 sec</option>
-                  <option value="30" selected>30 sec</option>
-                </select>
-              </div>
-              <div class="field">
-                <label for="model" class="label">Model</label>
-                <select id="model" name="model_version" class="select">
-                  <option value="melody" selected>Melody (1.5B)</option>
-                  <option value="large">Large (3.5B)</option>
-                </select>
-              </div>
+
+            <div class="form-footer">
+              <p class="form-hint">
+                Press Enter to generate or Shift+Enter for new line
+              </p>
+              <button type="submit" id="submit" class="btn-generate">
+                <svg
+                  class="sparkle-icon"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path
+                    d="M12 3l1.912 5.813a2 2 0 001.275 1.275L21 12l-5.813 1.912a2 2 0 00-1.275 1.275L12 21l-1.912-5.813a2 2 0 00-1.275-1.275L3 12l5.813-1.912a2 2 0 001.275-1.275L12 3z"
+                  />
+                </svg>
+                Generate
+              </button>
             </div>
-            <button type="submit" id="submit" class="btn">Generate</button>
+
+            <!-- Hidden selects for duration and model (keeping functionality) -->
+            <input type="hidden" id="duration" name="duration" value="30" />
+            <input
+              type="hidden"
+              id="model"
+              name="model_version"
+              value="melody"
+            />
           </form>
 
-          <!-- Loading overlay over hero (semi-transparent) -->
+          <!-- Loading Overlay -->
           <div id="loading" class="loading-overlay hidden" aria-live="polite">
-            <div class="loader-music" aria-hidden="true">
-              <div class="loader-vinyl"></div>
-              <div class="loader-equalizer">
+            <div class="loader-content">
+              <!-- Musical Staff with Notes -->
+              <div class="staff-container">
+                <div class="staff-lines">
+                  <div class="staff-line"></div>
+                  <div class="staff-line"></div>
+                  <div class="staff-line"></div>
+                  <div class="staff-line"></div>
+                  <div class="staff-line"></div>
+                </div>
+                <div class="treble-clef">𝄞</div>
+                <div class="floating-staff-notes">
+                  <span class="staff-note" style="--delay: 0s; --x: -40px"
+                    >♪</span
+                  >
+                  <span class="staff-note" style="--delay: 0.3s; --x: 0px"
+                    >♫</span
+                  >
+                  <span class="staff-note" style="--delay: 0.6s; --x: 40px"
+                    >♩</span
+                  >
+                  <span class="staff-note" style="--delay: 0.9s; --x: -20px"
+                    >♬</span
+                  >
+                  <span class="staff-note" style="--delay: 1.2s; --x: 20px"
+                    >♪</span
+                  >
+                </div>
+              </div>
+
+              <!-- Sound Wave Equalizer -->
+              <div class="equalizer">
+                <span class="eq-bar"></span>
+                <span class="eq-bar"></span>
                 <span class="eq-bar"></span>
                 <span class="eq-bar"></span>
                 <span class="eq-bar"></span>
@@ -83,128 +148,212 @@
                 <span class="eq-bar"></span>
                 <span class="eq-bar"></span>
               </div>
+
+              <!-- Loading Text -->
+              <div class="loading-text-group">
+                <p class="loading-text">Composing your melody</p>
+                <div class="loading-dots">
+                  <span class="dot"></span>
+                  <span class="dot"></span>
+                  <span class="dot"></span>
+                </div>
+              </div>
             </div>
-            <p class="loading-text">Crafting your masterpiece...</p>
           </div>
         </div>
 
-        <div id="result" class="result hidden">
-          <div class="result-header">
-            <p class="result-title">Your track</p>
-            <p class="result-subtitle">Play or download below</p>
+        <!-- Result Card -->
+        <div id="result" class="result-card hidden">
+          <h3 class="result-title">Generated Music</h3>
+
+          <!-- Waveform Visualization -->
+          <div class="waveform" id="waveform"></div>
+
+          <!-- Progress Bar -->
+          <div class="progress-container">
+            <div
+              class="progress-bar"
+              id="progressBar"
+              role="slider"
+              tabindex="0"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              aria-valuenow="0"
+              aria-label="Seek"
+            >
+              <div class="progress-fill" id="progressFill"></div>
+              <div class="progress-thumb" id="progressThumb"></div>
+            </div>
+            <div class="time-display">
+              <span id="currentTime" class="time">0:00</span>
+              <span id="durationTime" class="time">0:00</span>
+            </div>
           </div>
-          <div class="custom-player">
-            <audio id="player" class="player" preload="metadata"></audio>
-            <div class="player-controls">
+
+          <!-- Player Controls -->
+          <div class="player-controls">
+            <div class="volume-control">
               <button
                 type="button"
-                id="playPause"
-                class="play-pause-btn"
-                aria-label="Play"
+                id="volumeBtn"
+                class="icon-btn"
+                aria-label="Mute"
               >
                 <svg
-                  class="icon-play"
-                  width="28"
-                  height="28"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                  aria-hidden="true"
-                >
-                  <path d="M8 5v14l11-7z" />
-                </svg>
-                <svg
-                  class="icon-pause hidden"
-                  width="28"
-                  height="28"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                  aria-hidden="true"
-                >
-                  <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
-                </svg>
-              </button>
-              <div class="progress-area">
-                <div
-                  class="progress-bar"
-                  id="progressBar"
-                  role="slider"
-                  tabindex="0"
-                  aria-valuemin="0"
-                  aria-valuemax="100"
-                  aria-valuenow="0"
-                  aria-label="Seek"
-                >
-                  <div class="progress-fill" id="progressFill"></div>
-                </div>
-                <div class="time-display">
-                  <span id="currentTime" class="time">0:00</span>
-                  <span id="durationTime" class="time">0:00</span>
-                </div>
-              </div>
-            </div>
-            <div class="player-actions">
-              <div class="volume-wrap" aria-label="Volume">
-                <button
-                  type="button"
-                  id="volumeBtn"
-                  class="volume-btn"
-                  aria-label="Mute"
-                >
-                  <svg
-                    class="icon-volume"
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                    <path
-                      d="M15.54 8.46a5 5 0 0 1 0 7.07M19.07 4.93a10 10 0 0 1 0 14.14"
-                    />
-                  </svg>
-                </button>
-                <input
-                  type="range"
-                  id="volume"
-                  class="volume-slider"
-                  min="0"
-                  max="100"
-                  value="100"
-                  aria-label="Volume"
-                />
-              </div>
-              <a
-                id="download"
-                class="download-btn"
-                href="#"
-                download="auralis-generated.mp3"
-                aria-label="Download MP3"
-              >
-                <svg
+                  class="icon-volume"
                   width="20"
                   height="20"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
                   stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
                 >
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="7 10 12 15 17 10" />
-                  <line x1="12" y1="15" x2="12" y2="3" />
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                  <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
                 </svg>
-                <span>Download</span>
-              </a>
+                <svg
+                  class="icon-muted hidden"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                  <line x1="23" y1="9" x2="17" y2="15" />
+                  <line x1="17" y1="9" x2="23" y2="15" />
+                </svg>
+              </button>
+              <input
+                type="range"
+                id="volume"
+                class="volume-slider"
+                min="0"
+                max="100"
+                value="100"
+                aria-label="Volume"
+              />
             </div>
+
+            <button
+              type="button"
+              id="playPause"
+              class="play-btn"
+              aria-label="Play"
+            >
+              <svg
+                class="icon-play"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path d="M8 5v14l11-7z" />
+              </svg>
+              <svg
+                class="icon-pause hidden"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+              </svg>
+            </button>
+
+            <a
+              id="download"
+              class="icon-btn download-btn"
+              href="#"
+              download="auralis-generated.mp3"
+              aria-label="Download MP3"
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+            </a>
           </div>
+
+          <audio id="player" class="player-audio" preload="metadata"></audio>
         </div>
 
-        <div id="error" class="error hidden" role="alert"></div>
+        <!-- Error Message -->
+        <div id="error" class="error-message hidden" role="alert"></div>
+
+        <!-- Feature Cards -->
+        <div class="features">
+          <div class="feature">
+            <div class="feature-icon">
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <rect x="3" y="3" width="7" height="7" rx="1" />
+                <rect x="14" y="3" width="7" height="7" rx="1" />
+                <rect x="14" y="14" width="7" height="7" rx="1" />
+                <rect x="3" y="14" width="7" height="7" rx="1" />
+              </svg>
+            </div>
+            <h3 class="feature-title">Any Style</h3>
+            <p class="feature-desc">Piano, electronic, orchestral, ambient</p>
+          </div>
+          <div class="feature">
+            <div class="feature-icon feature-icon-accent">
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+              </svg>
+            </div>
+            <h3 class="feature-title">Fast Generation</h3>
+            <p class="feature-desc">High-quality tracks in seconds</p>
+          </div>
+          <div class="feature">
+            <div class="feature-icon">
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"
+                />
+                <polyline points="17 21 17 13 7 13 7 21" />
+                <polyline points="7 3 7 8 15 8" />
+              </svg>
+            </div>
+            <h3 class="feature-title">Download & Use</h3>
+            <p class="feature-desc">Export your creations instantly</p>
+          </div>
+        </div>
       </main>
     </div>
+
     <script src="{{ url_for('static', filename='app.js') }}"></script>
   </body>
 </html>

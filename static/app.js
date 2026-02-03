@@ -1,8 +1,9 @@
 (function () {
+  // DOM Elements
   const form = document.getElementById("form");
   const promptInput = document.getElementById("prompt");
-  const durationSelect = document.getElementById("duration");
-  const modelSelect = document.getElementById("model");
+  const durationInput = document.getElementById("duration");
+  const modelInput = document.getElementById("model");
   const submitBtn = document.getElementById("submit");
   const loading = document.getElementById("loading");
   const result = document.getElementById("result");
@@ -14,14 +15,103 @@
   const iconPause = playPauseBtn && playPauseBtn.querySelector(".icon-pause");
   const progressBar = document.getElementById("progressBar");
   const progressFill = document.getElementById("progressFill");
+  const progressThumb = document.getElementById("progressThumb");
   const currentTimeEl = document.getElementById("currentTime");
   const durationTimeEl = document.getElementById("durationTime");
   const volumeSlider = document.getElementById("volume");
   const volumeBtn = document.getElementById("volumeBtn");
+  const iconVolume = volumeBtn && volumeBtn.querySelector(".icon-volume");
+  const iconMuted = volumeBtn && volumeBtn.querySelector(".icon-muted");
   const loadingText = document.querySelector(".loading-text");
+  const waveformEl = document.getElementById("waveform");
+  const floatingNotesContainer = document.querySelector(".floating-notes");
 
   let listenersAttached = false;
-  let pollingInterval = null; // Stores the polling timer so we can stop it
+  let pollingInterval = null;
+  let waveformBars = [];
+  let animationFrameId = null;
+
+  // Initialize floating notes background
+  function initFloatingNotes() {
+    if (!floatingNotesContainer) return;
+
+    const notes = ["♪", "♫", "♬", "♩"];
+    const positions = [
+      { left: 8, top: 12 },
+      { left: 85, top: 8 },
+      { left: 15, top: 45 },
+      { left: 90, top: 35 },
+      { left: 5, top: 75 },
+      { left: 92, top: 70 },
+      { left: 20, top: 85 },
+      { left: 80, top: 88 },
+    ];
+
+    positions.forEach((pos, i) => {
+      const note = document.createElement("span");
+      note.className = "floating-note";
+      note.textContent = notes[i % notes.length];
+      note.style.left = pos.left + "%";
+      note.style.top = pos.top + "%";
+      note.style.setProperty("--delay", i * 0.5 + "s");
+      note.style.setProperty("--duration", 5 + Math.random() * 3 + "s");
+      floatingNotesContainer.appendChild(note);
+    });
+  }
+
+  // Initialize waveform visualization
+  function initWaveform() {
+    if (!waveformEl) return;
+
+    waveformEl.innerHTML = "";
+    waveformBars = [];
+
+    const barCount = 50;
+    for (let i = 0; i < barCount; i++) {
+      const bar = document.createElement("div");
+      bar.className = "waveform-bar";
+      // Create a wave pattern for initial state
+      const height = 20 + Math.sin(i * 0.3) * 15 + Math.random() * 10;
+      bar.style.height = height + "%";
+      waveformEl.appendChild(bar);
+      waveformBars.push(bar);
+    }
+  }
+
+  // Animate waveform based on playback
+  function animateWaveform() {
+    if (!player || player.paused) {
+      cancelAnimationFrame(animationFrameId);
+      return;
+    }
+
+    const progress = player.currentTime / player.duration;
+    const activeIndex = Math.floor(progress * waveformBars.length);
+
+    waveformBars.forEach((bar, i) => {
+      const baseHeight = 20 + Math.sin(i * 0.3 + player.currentTime * 2) * 25;
+      const randomness = Math.random() * 15;
+      bar.style.height = baseHeight + randomness + "%";
+
+      if (i <= activeIndex) {
+        bar.classList.add("active");
+      } else {
+        bar.classList.remove("active");
+      }
+    });
+
+    animationFrameId = requestAnimationFrame(animateWaveform);
+  }
+
+  // Reset waveform to static state
+  function resetWaveform() {
+    cancelAnimationFrame(animationFrameId);
+    waveformBars.forEach((bar, i) => {
+      bar.classList.remove("active");
+      const height = 20 + Math.sin(i * 0.3) * 15 + Math.random() * 10;
+      bar.style.height = height + "%";
+    });
+  }
 
   function hideAll() {
     loading.classList.add("hidden");
@@ -72,8 +162,12 @@
     if (d > 0) {
       const pct = (t / d) * 100;
       progressFill.style.width = pct + "%";
-      if (progressBar)
+      if (progressThumb) {
+        progressThumb.style.left = pct + "%";
+      }
+      if (progressBar) {
         progressBar.setAttribute("aria-valuenow", Math.round(pct));
+      }
     }
     currentTimeEl.textContent = formatTime(t);
   }
@@ -89,10 +183,25 @@
       iconPlay.classList.remove("hidden");
       iconPause.classList.add("hidden");
       playPauseBtn.setAttribute("aria-label", "Play");
+      resetWaveform();
     } else {
       iconPlay.classList.add("hidden");
       iconPause.classList.remove("hidden");
       playPauseBtn.setAttribute("aria-label", "Pause");
+      animateWaveform();
+    }
+  }
+
+  function updateVolumeIcon() {
+    if (!volumeBtn || !iconVolume || !iconMuted) return;
+    if (player.volume === 0 || player.muted) {
+      iconVolume.classList.add("hidden");
+      iconMuted.classList.remove("hidden");
+      volumeBtn.setAttribute("aria-label", "Unmute");
+    } else {
+      iconVolume.classList.remove("hidden");
+      iconMuted.classList.add("hidden");
+      volumeBtn.setAttribute("aria-label", "Mute");
     }
   }
 
@@ -102,8 +211,15 @@
     if (!listenersAttached) {
       player.addEventListener("timeupdate", updateProgress);
       player.addEventListener("durationchange", updateDuration);
-      player.addEventListener("ended", updatePlayPauseIcon);
+      player.addEventListener("ended", function () {
+        updatePlayPauseIcon();
+        resetWaveform();
+      });
       player.addEventListener("loadedmetadata", updateDuration);
+      player.addEventListener("play", animateWaveform);
+      player.addEventListener("pause", function () {
+        cancelAnimationFrame(animationFrameId);
+      });
 
       playPauseBtn.addEventListener("click", function () {
         if (player.paused) {
@@ -114,7 +230,7 @@
         updatePlayPauseIcon();
       });
 
-      if (progressBar && progressFill) {
+      if (progressBar) {
         progressBar.addEventListener("click", function (e) {
           const d = player.duration;
           if (!isFinite(d) || d <= 0) return;
@@ -129,22 +245,24 @@
       if (volumeSlider) {
         volumeSlider.addEventListener("input", function () {
           player.volume = volumeSlider.value / 100;
+          player.muted = false;
+          updateVolumeIcon();
         });
       }
 
       if (volumeBtn) {
         var savedVolume = 1;
         volumeBtn.addEventListener("click", function () {
-          if (player.volume > 0) {
+          if (player.volume > 0 && !player.muted) {
             savedVolume = player.volume;
-            player.volume = 0;
+            player.muted = true;
             if (volumeSlider) volumeSlider.value = 0;
-            volumeBtn.setAttribute("aria-label", "Unmute");
           } else {
-            player.volume = savedVolume;
-            if (volumeSlider) volumeSlider.value = savedVolume * 100;
-            volumeBtn.setAttribute("aria-label", "Mute");
+            player.muted = false;
+            player.volume = savedVolume || 0.8;
+            if (volumeSlider) volumeSlider.value = (savedVolume || 0.8) * 100;
           }
+          updateVolumeIcon();
         });
       }
 
@@ -154,6 +272,7 @@
     updatePlayPauseIcon();
     updateProgress();
     updateDuration();
+    updateVolumeIcon();
   }
 
   function showResult(streamUrl, downloadUrl) {
@@ -171,14 +290,18 @@
     result.classList.remove("hidden");
     submitBtn.disabled = false;
 
+    // Reset player UI
     progressFill.style.width = "0%";
+    if (progressThumb) progressThumb.style.left = "0%";
     if (progressBar) progressBar.setAttribute("aria-valuenow", 0);
     currentTimeEl.textContent = "0:00";
     durationTimeEl.textContent = "0:00";
     player.volume = 1;
+    player.muted = false;
     if (volumeSlider) volumeSlider.value = 100;
-    if (volumeBtn) volumeBtn.setAttribute("aria-label", "Mute");
 
+    // Initialize waveform for new track
+    initWaveform();
     setupCustomPlayer();
 
     player.oncanplay = function () {
@@ -193,7 +316,7 @@
 
   // ---------- STEP 2: Poll /api/status until prediction is done ----------
   function startPolling(predictionId) {
-    setLoading(true, "Composing your music...");
+    setLoading(true, "Composing your melody");
 
     pollingInterval = setInterval(async function () {
       try {
@@ -204,11 +327,11 @@
 
         // Still running
         if (data.status === "starting") {
-          setLoading(true, "Starting up...");
+          setLoading(true, "Starting up");
           return;
         }
         if (data.status === "processing") {
-          setLoading(true, "Crafting your masterpiece...");
+          setLoading(true, "Crafting your masterpiece");
           return;
         }
 
@@ -241,6 +364,14 @@
     }, 3000); // Poll every 3 seconds
   }
 
+  // Handle Enter key to submit
+  function handleKeyDown(e) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      form.dispatchEvent(new Event("submit", { cancelable: true }));
+    }
+  }
+
   // ---------- STEP 1: Submit prompt, get prediction ID ----------
   form.addEventListener("submit", async function (e) {
     e.preventDefault();
@@ -252,7 +383,7 @@
       return;
     }
 
-    setLoading(true, "Starting generation...");
+    setLoading(true, "Starting generation");
 
     try {
       const res = await fetch("/api/generate", {
@@ -260,8 +391,8 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt: prompt,
-          duration: parseInt(durationSelect.value, 10),
-          model_version: modelSelect.value,
+          duration: parseInt(durationInput.value, 10) || 30,
+          model_version: modelInput.value || "melody",
         }),
       });
 
@@ -284,4 +415,12 @@
       showError(err.message || "Network error. Please try again.");
     }
   });
+
+  // Add Enter key handler to textarea
+  if (promptInput) {
+    promptInput.addEventListener("keydown", handleKeyDown);
+  }
+
+  // Initialize
+  initFloatingNotes();
 })();

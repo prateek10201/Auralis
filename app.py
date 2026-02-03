@@ -1,5 +1,6 @@
 """
 Flask backend for AI instrumental music generation via Replicate (MusicGen).
+Uses async prediction + polling so no single request blocks longer than a few seconds.
 """
 import os
 import traceback
@@ -15,18 +16,19 @@ app = Flask(__name__)
 
 REPLICATE_API_TOKEN = os.environ.get("REPLICATE_API_TOKEN", "")
 
+# MusicGen model version
+MODEL_VERSION = "671ac645ce5e552cc63a54a2bbff63fcf798043055d2dac5fc9e36a837eedcfb"
+
 
 @app.errorhandler(405)
 def handle_405(e):
-    """Return JSON for 405 Method Not Allowed."""
     return jsonify({
-        "error": "Method not allowed. Use POST to /api/generate with a JSON body (prompt, duration, model_version).",
+        "error": "Method not allowed. Use POST to /api/generate.",
     }), 405
 
 
 @app.errorhandler(Exception)
 def handle_exception(e):
-    """Catch any unhandled exception and return JSON so the frontend can show it."""
     app.logger.exception("Unhandled error")
     return jsonify({"error": str(e) or "An unexpected error occurred."}), 500
 
@@ -35,18 +37,17 @@ def handle_exception(e):
 def index():
     return render_template("index.html")
 
+
 @app.route("/favicon.ico")
 def favicon():
     return "", 204
 
 
+# ---------- STEP 1: Start prediction (returns ID immediately) ----------
 @app.route("/api/generate", methods=["POST"])
 def generate():
     try:
-        try:
-            data = request.get_json(force=True, silent=True) or {}
-        except Exception:
-            data = {}
+        data = request.get_json(force=True, silent=True) or {}
 
         prompt = (data.get("prompt") or "").strip()
 
@@ -65,74 +66,132 @@ def generate():
             return jsonify({"error": "Please provide a text prompt."}), 400
 
         if not REPLICATE_API_TOKEN:
-            return (
-                jsonify({
-                    "error": "Replicate API token not set. Set REPLICATE_API_TOKEN in your environment or .env file.",
-                }),
-                503,
-            )
+            return jsonify({
+                "error": "Replicate API token not set. Set REPLICATE_API_TOKEN in your environment or .env file.",
+            }), 503
 
-        import replicate
-
-        output = replicate.run(
-            "meta/musicgen:671ac645ce5e552cc63a54a2bbff63fcf798043055d2dac5fc9e36a837eedcfb",
-            input={
-                "prompt": prompt,
-                "duration": duration,
-                "model_version": model_version,
-                "output_format": "mp3",
-                "normalization_strategy": "loudness",
+        # Create prediction via Replicate HTTP API (does NOT wait for result)
+        response = requests.post(
+            "https://api.replicate.com/v1/predictions",
+            headers={
+                "Authorization": f"Token {REPLICATE_API_TOKEN}",
+                "Content-Type": "application/json",
             },
-            use_file_output=False,
+            json={
+                "version": MODEL_VERSION,
+                "input": {
+                    "prompt": prompt,
+                    "duration": duration,
+                    "model_version": model_version,
+                    "output_format": "mp3",
+                    "normalization_strategy": "loudness",
+                },
+            },
+            timeout=10,  # Just creating the prediction, should be fast
         )
 
-        # Replicate can return: URL string, list of URLs, or FileOutput-like object with .url
-        audio_url = None
-        if output is None:
-            pass
-        elif hasattr(output, "url"):
-            audio_url = getattr(output, "url", None)
-        elif isinstance(output, list) and output:
-            first = output[0]
-            audio_url = getattr(first, "url", first) if first is not None else None
-        elif isinstance(output, str):
-            audio_url = output
+        if response.status_code != 201:
+            error_text = response.text
+            if "insufficient" in error_text.lower() or response.status_code == 402:
+                return jsonify({
+                    "error": "Your Replicate account is out of credit. Add credit at https://replicate.com/account/billing.",
+                }), 402
+            return jsonify({"error": f"Replicate error: {error_text}"}), 502
 
-        if not audio_url or not isinstance(audio_url, str):
-            return jsonify({"error": "No audio URL returned from Replicate."}), 502
+        prediction = response.json()
+        prediction_id = prediction.get("id")
 
-        # FIX: Return the direct Replicate URL for playback (no proxy needed)
-        # Only use the proxy /api/download for downloading (chunked streaming)
+        if not prediction_id:
+            return jsonify({"error": "No prediction ID returned from Replicate."}), 502
+
+        # Return the prediction ID immediately — frontend will poll /api/status
         return jsonify({
-            "audio_url": audio_url,
-            "stream_url": audio_url,  # Direct URL — browser plays this without hitting Render again
-            "download_url": f"/api/download?url={urllib.parse.quote(audio_url, safe='')}",
+            "prediction_id": prediction_id,
+            "status": prediction.get("status", "starting"),
         })
 
     except Exception as e:
-        err_msg = str(e)
-        if "insufficient credit" in err_msg.lower() or "402" in err_msg:
-            return (
-                jsonify({
-                    "error": "Your Replicate account is out of credit. Add credit at https://replicate.com/account/billing and try again in a few minutes.",
-                }),
-                402,
-            )
-        app.logger.warning("generate error: %s\n%s", err_msg, traceback.format_exc())
-        return jsonify({"error": err_msg}), 502
+        app.logger.warning("generate error: %s\n%s", str(e), traceback.format_exc())
+        return jsonify({"error": str(e)}), 502
 
 
+# ---------- STEP 2: Poll prediction status (called by frontend every 3s) ----------
+@app.route("/api/status/<prediction_id>")
+def status(prediction_id):
+    try:
+        if not REPLICATE_API_TOKEN:
+            return jsonify({"error": "API token not set."}), 503
+
+        response = requests.get(
+            f"https://api.replicate.com/v1/predictions/{prediction_id}",
+            headers={
+                "Authorization": f"Token {REPLICATE_API_TOKEN}",
+                "Content-Type": "application/json",
+            },
+            timeout=10,
+        )
+
+        if response.status_code != 200:
+            return jsonify({"error": f"Replicate error: {response.text}"}), 502
+
+        prediction = response.json()
+        pred_status = prediction.get("status", "unknown")
+
+        # Still processing
+        if pred_status in ("starting", "processing"):
+            return jsonify({
+                "status": pred_status,
+                "prediction_id": prediction_id,
+            })
+
+        # Failed
+        if pred_status == "failed":
+            error_msg = prediction.get("error", "Music generation failed.")
+            return jsonify({"status": "failed", "error": error_msg}), 422
+
+        # Canceled
+        if pred_status == "canceled":
+            return jsonify({"status": "canceled", "error": "Generation was canceled."}), 422
+
+        # Succeeded — extract audio URL
+        if pred_status == "succeeded":
+            output = prediction.get("output")
+            audio_url = None
+
+            if isinstance(output, str):
+                audio_url = output
+            elif isinstance(output, list) and output:
+                audio_url = output[0]
+
+            if not audio_url:
+                return jsonify({"status": "failed", "error": "No audio URL in output."}), 422
+
+            return jsonify({
+                "status": "succeeded",
+                "audio_url": audio_url,
+                "stream_url": audio_url,  # Direct URL — browser plays without hitting Render
+                "download_url": f"/api/download?url={urllib.parse.quote(audio_url, safe='')}",
+            })
+
+        # Unknown status
+        return jsonify({"status": pred_status, "prediction_id": prediction_id})
+
+    except Exception as e:
+        app.logger.warning("status error: %s\n%s", str(e), traceback.format_exc())
+        return jsonify({"error": str(e)}), 502
+
+
+# ---------- Download proxy (chunked streaming) ----------
 def _stream_audio(url):
-    """Properly stream audio in chunks to avoid timeout and memory issues."""
+    """Stream audio in chunks to avoid timeout and memory issues."""
     response = requests.get(
         url,
         headers={"User-Agent": "Auralis/1.0"},
         timeout=120,
-        stream=True,  # Now we actually USE streaming
+        stream=True,
         verify=True,
     )
     response.raise_for_status()
-    # Yield in chunks — this keeps the connection alive and avoids loading entire file into memory
     for chunk in response.iter_content(chunk_size=8192):
         if chunk:
             yield chunk
@@ -145,7 +204,6 @@ def download():
         return jsonify({"error": "Missing url parameter"}), 400
     url = urllib.parse.unquote(url)
     try:
-        # Use chunked streaming response — no timeout issues on Render
         return Response(
             stream_with_context(_stream_audio(url)),
             mimetype="audio/mpeg",

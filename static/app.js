@@ -18,9 +18,10 @@
   const durationTimeEl = document.getElementById("durationTime");
   const volumeSlider = document.getElementById("volume");
   const volumeBtn = document.getElementById("volumeBtn");
+  const loadingText = document.querySelector(".loading-text");
 
-  // Track whether listeners are already attached
   let listenersAttached = false;
+  let pollingInterval = null; // Stores the polling timer so we can stop it
 
   function hideAll() {
     loading.classList.add("hidden");
@@ -29,11 +30,14 @@
     errorEl.textContent = "";
   }
 
-  function setLoading(active) {
+  function setLoading(active, message) {
     if (active) {
       hideAll();
       loading.classList.remove("hidden");
       submitBtn.disabled = true;
+      if (loadingText && message) {
+        loadingText.textContent = message;
+      }
     } else {
       loading.classList.add("hidden");
       submitBtn.disabled = false;
@@ -41,9 +45,17 @@
   }
 
   function showError(message) {
+    stopPolling();
     hideAll();
     errorEl.textContent = message;
     errorEl.classList.remove("hidden");
+  }
+
+  function stopPolling() {
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+      pollingInterval = null;
+    }
   }
 
   function formatTime(seconds) {
@@ -73,8 +85,7 @@
 
   function updatePlayPauseIcon() {
     if (!playPauseBtn || !iconPlay || !iconPause) return;
-    const isPaused = player.paused;
-    if (isPaused) {
+    if (player.paused) {
       iconPlay.classList.remove("hidden");
       iconPause.classList.add("hidden");
       playPauseBtn.setAttribute("aria-label", "Play");
@@ -88,7 +99,6 @@
   function setupCustomPlayer() {
     if (!player || !playPauseBtn) return;
 
-    // Only attach event listeners ONCE to avoid duplicate handlers
     if (!listenersAttached) {
       player.addEventListener("timeupdate", updateProgress);
       player.addEventListener("durationchange", updateDuration);
@@ -147,22 +157,20 @@
   }
 
   function showResult(streamUrl, downloadUrl) {
+    stopPolling();
     loading.classList.add("hidden");
     errorEl.classList.add("hidden");
     errorEl.textContent = "";
 
-    // Set audio source to the DIRECT Replicate URL — browser fetches it itself
     player.src = streamUrl;
     player.load();
 
-    // Download button uses the proxy endpoint
     downloadLink.href = downloadUrl;
     downloadLink.download = "auralis-generated.mp3";
 
     result.classList.remove("hidden");
     submitBtn.disabled = false;
 
-    // Reset player state
     progressFill.style.width = "0%";
     if (progressBar) progressBar.setAttribute("aria-valuenow", 0);
     currentTimeEl.textContent = "0:00";
@@ -173,27 +181,79 @@
 
     setupCustomPlayer();
 
-    // Play after metadata loads (more reliable than immediate play)
     player.oncanplay = function () {
       player.play().catch(function () {});
       updatePlayPauseIcon();
     };
 
-    // Handle audio load errors (e.g. CORS or expired URL)
     player.onerror = function () {
       showError("Failed to load audio. Please try generating again.");
     };
   }
 
+  // ---------- STEP 2: Poll /api/status until prediction is done ----------
+  function startPolling(predictionId) {
+    setLoading(true, "Composing your music...");
+
+    pollingInterval = setInterval(async function () {
+      try {
+        const res = await fetch("/api/status/" + predictionId);
+        const data = await res.json().catch(function () {
+          return { error: "Invalid status response." };
+        });
+
+        // Still running
+        if (data.status === "starting") {
+          setLoading(true, "Starting up...");
+          return;
+        }
+        if (data.status === "processing") {
+          setLoading(true, "Crafting your masterpiece...");
+          return;
+        }
+
+        // Done — success
+        if (data.status === "succeeded") {
+          stopPolling();
+          const streamUrl = data.stream_url || data.audio_url;
+          const downloadUrl = data.download_url || data.audio_url;
+          showResult(streamUrl, downloadUrl);
+          return;
+        }
+
+        // Failed or canceled
+        if (data.status === "failed" || data.status === "canceled") {
+          stopPolling();
+          showError(data.error || "Music generation failed. Please try again.");
+          return;
+        }
+
+        // Any other error from the server
+        if (data.error) {
+          stopPolling();
+          showError(data.error);
+          return;
+        }
+      } catch (err) {
+        stopPolling();
+        showError("Network error while checking status. Please try again.");
+      }
+    }, 3000); // Poll every 3 seconds
+  }
+
+  // ---------- STEP 1: Submit prompt, get prediction ID ----------
   form.addEventListener("submit", async function (e) {
     e.preventDefault();
+    stopPolling(); // Stop any previous polling
+
     const prompt = (promptInput.value || "").trim();
     if (!prompt) {
       showError("Please describe the music you want.");
       return;
     }
 
-    setLoading(true);
+    setLoading(true, "Starting generation...");
+
     try {
       const res = await fetch("/api/generate", {
         method: "POST",
@@ -204,34 +264,24 @@
           model_version: modelSelect.value,
         }),
       });
+
       const data = await res.json().catch(function () {
         return { error: "Invalid response from server." };
       });
 
-      if (!res.ok) {
+      if (!res.ok || data.error) {
         showError(data.error || "Something went wrong. Please try again.");
         return;
       }
 
-      if (data.error) {
-        showError(data.error);
-        return;
-      }
-
-      // stream_url is now the direct Replicate URL (browser plays it)
-      // download_url goes through our /api/download proxy (chunked streaming)
-      const streamUrl = data.stream_url || data.audio_url;
-      const downloadUrl = data.download_url || data.audio_url;
-
-      if (streamUrl) {
-        showResult(streamUrl, downloadUrl);
+      // Got prediction ID — start polling for result
+      if (data.prediction_id) {
+        startPolling(data.prediction_id);
       } else {
-        showError("No audio URL in response.");
+        showError("No prediction ID received. Please try again.");
       }
     } catch (err) {
       showError(err.message || "Network error. Please try again.");
-    } finally {
-      setLoading(false);
     }
   });
 })();

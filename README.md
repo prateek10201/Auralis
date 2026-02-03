@@ -2,6 +2,12 @@
 
 **Auralis** is a web application that generates instrumental music from simple text descriptions using artificial intelligence. Inspired by apps like Suno, I built this to explore how AI can transform creative ideas into real music in seconds.
 
+## 🌐 Live Demo
+
+**[Try Auralis Live →](https://auralis-lv6e.onrender.com/)**
+
+> **Note:** Auralis is deployed on Render's free tier. If you're visiting for the first time or after a period of inactivity, the server may take 30-60 seconds to spin up. Thanks for your patience!
+
 ## 🎯 What This Project Does
 
 Auralis takes a text prompt like _"peaceful piano melody for studying"_ or _"upbeat guitar instrumental"_ and generates an original piece of instrumental music. The app uses Meta's MusicGen AI model via the Replicate API to compose and produce audio files based purely on your description.
@@ -10,18 +16,19 @@ Auralis takes a text prompt like _"peaceful piano melody for studying"_ or _"upb
 
 - **Text-to-Music Generation**: Describe the mood, instruments, or style you want
 - **Instant Playback**: Generated tracks play automatically in your browser
+- **Waveform Visualization**: Animated waveform that responds to audio playback
 - **Customizable Duration**: Choose between 8, 15, or 30-second compositions
 - **Model Selection**: Pick between Melody (balanced) or Large (more complex) versions
 - **Download**: Save your generated music as MP3 files
-- **Elegant UI**: Black and white themed interface with floating musical notes
+- **Elegant UI**: Clean light theme with musical illustrations and floating notes
 
 ## 🛠️ Technical Stack
 
 ### Frontend
 
 - **HTML5** for structure
-- **CSS3** for styling with musical theme and animations
-- **Vanilla JavaScript** for interactive controls and API communication
+- **CSS3** for styling with modern light theme and animations
+- **Vanilla JavaScript** for interactive controls, waveform visualization, and API communication
 
 ### Backend
 
@@ -37,11 +44,13 @@ Auralis takes a text prompt like _"peaceful piano melody for studying"_ or _"upb
 
 ## 🎨 Design Philosophy
 
-I designed Auralis with a minimalist black-and-white aesthetic to create an elegant, focused experience. The UI features:
+I designed Auralis with a clean, minimalist light aesthetic to create an elegant, focused experience. The UI features:
 
-- Subtle musical note animations in the background
+- Hand-drawn style illustrations of musicians (piano and tabla players)
+- Subtle floating musical note animations in the background
+- Musical staff loading animation with treble clef and bouncing notes
+- Waveform visualization in the audio player
 - Clean, centered layout that puts the creative process front and center
-- Smooth loading animations during music generation
 
 ## 🚀 Setup and Run Locally
 
@@ -56,20 +65,21 @@ I designed Auralis with a minimalist black-and-white aesthetic to create an eleg
 1. **Clone or download the project**
 
 ```bash
-   cd Auralis_Project
+git clone https://github.com/your-username/auralis.git
+cd auralis
 ```
 
 2. **Create a virtual environment**
 
 ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate   # Windows: .venv\Scripts\activate
+python3 -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
 ```
 
 3. **Install dependencies**
 
 ```bash
-   pip install -r requirements.txt
+pip install -r requirements.txt
 ```
 
 4. **Configure your API token**
@@ -77,13 +87,13 @@ I designed Auralis with a minimalist black-and-white aesthetic to create an eleg
    Copy the example environment file:
 
 ```bash
-   cp .env.example .env
+cp .env.example .env
 ```
 
 Edit `.env` and add your Replicate API token:
 
 ```
-   REPLICATE_API_TOKEN=r8_your_actual_token_here
+REPLICATE_API_TOKEN=r8_your_actual_token_here
 ```
 
 Get your token from [Replicate Account → API tokens](https://replicate.com/account/api-tokens)
@@ -91,16 +101,16 @@ Get your token from [Replicate Account → API tokens](https://replicate.com/acc
 5. **Run the application**
 
 ```bash
-   python app.py
+python app.py
 ```
 
 6. **Open in browser**
 
    Navigate to [http://127.0.0.1:5001](http://127.0.0.1:5001)
 
-## 🌐 Deploying to Production
+## 🌍 Deploying to Production
 
-Auralis can be deployed to any Python-compatible hosting platform. The app is production-ready with gunicorn support, and deployed in Render.
+Auralis can be deployed to any Python-compatible hosting platform. The app is production-ready with gunicorn support. Currently deployed on [Render](https://render.com).
 
 ## 📖 How to Use Auralis
 
@@ -123,7 +133,7 @@ Auralis can be deployed to any Python-compatible hosting platform. The app is pr
 ## 📁 Project Structure
 
 ```
-Auralis_Project/
+auralis/
 ├── app.py                 # Flask backend and Replicate API integration
 ├── requirements.txt       # Python dependencies
 ├── .env.example          # Environment variables template
@@ -134,7 +144,10 @@ Auralis_Project/
 │   └── index.html        # Main application page
 └── static/
     ├── style.css         # Styling and animations
-    └── app.js            # Frontend JavaScript logic
+    ├── app.js            # Frontend JavaScript logic
+    └── images/
+        ├── piano-illustration.png
+        └── tabla-illustration.png
 ```
 
 ## 🎓 What I Learned
